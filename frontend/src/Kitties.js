@@ -31,6 +31,9 @@ export default function Kitties (props) {
       api.query.kittiesModule.owner(1).then(v => {
         console.log(v.unwrap().toString())
       })
+      api.query.kittiesModule.owner.multi([...Array(kittyIndex).keys()], (owners) => {
+        console.log(owners)
+      })
     })
     // console.log(kittyIndex)
 
