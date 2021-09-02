@@ -19,9 +19,11 @@ export default function Kitties (props) {
   const [skittyIndex, setkittyIndex] = useState(0)
   const [skittiesList, setkittiesList] = useState([])
   const [sownersList, setownersList] = useState([])
+  const [isChange, setIsChange]= useState(false)
 
   const fetchKitties = () => {
     console.log(`fetchKitties start`)
+    // console.log('trans? ' + isTrans)
     let kittyIndex
     let kittiesList = Array()
     let ownersList = Array()
@@ -37,6 +39,7 @@ export default function Kitties (props) {
     api.query.kittiesModule.kittiesCount(d => {
       // console.log(d)
       //let kittyIndex
+      setIsChange(true)
       if (d.isSome) {
         kittyIndex = d.unwrap().toNumber()
         // console.log(kittyIndex)
@@ -63,6 +66,7 @@ export default function Kitties (props) {
       const kittyIndexList = [...Array(kittyIndex).keys()]
       api.query.kittiesModule.kitties.multi(kittyIndexList, (_kitties) => {
         // console.log(_kitties)
+        setIsChange(true)
         for (let i in _kitties) {
           if (_kitties[i].isSome) {
             const _kitty = _kitties[i].unwrap().toU8a()
@@ -76,6 +80,7 @@ export default function Kitties (props) {
       api.query.kittiesModule.owner.multi(kittyIndexList, (owners) => {
         // console.log(owners)
         // console.log(typeof(owners))
+        setIsChange(true)
         for (let i in owners) {
           if (owners[i].isSome) {
             const _owner = owners[i].unwrap().toString()
@@ -122,9 +127,9 @@ export default function Kitties (props) {
     console.log(`populateKitties end`)
   }
 
-  useEffect(fetchKitties, [api, keyring, api.query.kittiesModule])
+  useEffect(fetchKitties, [api, keyring, status])
   // useEffect(fetchKitties1, [api, keyring])
-  useEffect(populateKitties, [skittyIndex, skittiesList, sownersList])
+  useEffect(populateKitties, [sownersList, skittiesList, skittyIndex, status])
   //useEffect(populateKitties)
 
   return <Grid.Column width={16}>

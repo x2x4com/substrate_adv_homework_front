@@ -9,6 +9,7 @@ import { TxButton } from './substrate-lib/components'
 const TransferModal = props => {
   const { kitty, accountPair, setStatus } = props
   const [open, setOpen] = React.useState(false)
+  //const [isTrans, setIsTrans] = React.useState(false)
   const [formValue, setFormValue] = React.useState({})
 
   const formChange = key => (ev, el) => {
@@ -17,6 +18,8 @@ const TransferModal = props => {
 
   const confirmAndClose = (unsub) => {
     unsub()
+    //setIsTrans(true)
+    //console.log('trans page:' + isTrans)
     setOpen(false)
   }
 
