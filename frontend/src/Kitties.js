@@ -29,7 +29,7 @@ export default function Kitties (props) {
         console.log(v.unwrap())
       })
       api.query.kittiesModule.owner(1).then(v => {
-        console.log(v.unwrap())
+        console.log(v.unwrap().toString())
       })
     })
     // console.log(kittyIndex)
