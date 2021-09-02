@@ -19,6 +19,21 @@ export default function Kitties (props) {
     //   - 共有多少只猫咪
     //   - 每只猫咪的主人是谁
     //   - 每只猫咪的 DNA 是什么，用来组合出它的形态
+    console.log(api)
+    api.query.kittiesModule.kittiesCount(d => {
+      // console.log(d)
+      let kittyIndex = d.unwrap().toNumber()
+      console.log(kittyIndex)
+      let kitties
+      api.query.kittiesModule.kitties(1).then(v => {
+        console.log(v.unwrap())
+      })
+      api.query.kittiesModule.owner(1).then(v => {
+        console.log(v.unwrap())
+      })
+    })
+    // console.log(kittyIndex)
+
   }
 
   const populateKitties = () => {
@@ -31,7 +46,7 @@ export default function Kitties (props) {
     //  }, { id: ..., dna: ..., owner: ... }]
     //  ```
     // 这个 kitties 会传入 <KittyCards/> 然后对每只猫咪进行处理
-    const kitties = []
+    // const kitties = []
     setKitties(kitties)
   }
 
