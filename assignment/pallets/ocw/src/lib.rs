@@ -49,7 +49,11 @@ pub mod pallet {
 
 	// We are fetching information from the github public API about organization`substrate-developer-hub`.
 	const HTTP_REMOTE_REQUEST: &str = "https://api.github.com/orgs/substrate-developer-hub";
-	const HTTP_HEADER_USER_AGENT: &str = "jimmychu0807";
+	// coincap不稳定，找个其他的api
+	const HTTP_COINCAP_URL: &str = "https://api.coincap.io/v2/assets/polkadot";
+	// 币安的比较稳定，返回的数据也简单
+	const HTTP_BINANCE_URL: &str = "https://api3.binance.com/api/v3/avgPrice?symbol=DOTUSDT";
+	const HTTP_HEADER_USER_AGENT: &str = "x2x4";
 
 	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
 	const LOCK_TIMEOUT_EXPIRATION: u64 = FETCH_TIMEOUT_PERIOD + 1000; // in milli-seconds
@@ -370,7 +374,7 @@ pub mod pallet {
 
 		/// Fetch from remote and deserialize the JSON to a struct
 		fn fetch_n_parse() -> Result<GithubInfo, Error<T>> {
-			let resp_bytes = Self::fetch_from_remote().map_err(|e| {
+			let resp_bytes = Self::fetch_from_remote(HTTP_REMOTE_REQUEST).map_err(|e| {
 				log::error!("fetch_from_remote error: {:?}", e);
 				<Error<T>>::HttpFetchingError
 			})?;
@@ -387,11 +391,11 @@ pub mod pallet {
 
 		/// This function uses the `offchain::http` API to query the remote github information,
 		///   and returns the JSON response as vector of bytes.
-		fn fetch_from_remote() -> Result<Vec<u8>, Error<T>> {
-			log::info!("sending request to: {}", HTTP_REMOTE_REQUEST);
+		fn fetch_from_remote(url: &str) -> Result<Vec<u8>, Error<T>> {
+			log::info!("sending request to: {}", url);
 
 			// Initiate an external HTTP GET request. This is using high-level wrappers from `sp_runtime`.
-			let request = rt_offchain::http::Request::get(HTTP_REMOTE_REQUEST);
+			let request = rt_offchain::http::Request::get(url);
 
 			// Keeping the offchain worker execution time reasonable, so limiting the call to be within 3s.
 			let timeout = sp_io::offchain::timestamp()
