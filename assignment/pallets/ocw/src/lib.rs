@@ -128,14 +128,6 @@ pub mod pallet {
 		timestamp: u64
 	}
 
-	pub fn de_split_price<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
-		where
-			D: Deserializer<'de>,
-	{
-		let s: &str = Deserialize::deserialize(de)?;
-		Ok(s.as_bytes().to_vec())
-	}
-
 	pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 	where
 	D: Deserializer<'de>,
@@ -344,10 +336,22 @@ pub mod pallet {
 			});
 		}
 
+		fn append_or_replace_price(a: u64, b: Permill) {
+			Prices::<T>::mutate(|prices| {
+				if prices.len() == NUM_VEC_LEN {
+					let pop_price = prices.pop_front();
+					match pop_price {
+						Some(i) => log::info!("pop_price: {:0?}.{:1?}", i.0, i.1),
+						None => {}
+					}
+				}
+				prices.push_back((a, b));
+				log::info!("Prices vector: {:?}", prices);
+			});
+		}
+
 		fn fetch_price_info() -> Result<(), Error<T>> {
 			log::info!("!!! In fetch_price_info !!!");
-			// TODO: 这是你们的功课
-
 			// 利用 offchain worker 取出 DOT 当前对 USD 的价格，并把写到一个 Vec 的存储里，
 			// 你们自己选一种方法提交回链上，并在代码注释为什么用这种方法提交回链上最好。只保留当前最近的 10 个价格，
 			// 其他价格可丢弃 （就是 Vec 的长度长到 10 后，这时再插入一个值时，要先丢弃最早的那个值）。
@@ -358,7 +362,7 @@ pub mod pallet {
 			// 这个 http 请求可得到当前 DOT 价格：
 			// [https://api.coincap.io/v2/assets/polkadot](https://api.coincap.io/v2/assets/polkadot)。
 
-			// 根据查到的文档，Permill::from_float(f64) 来获取小数部分
+			// 根据查到的文档，Permill::from_float(f64) 来获取小数部分 (这个只能再test用)
             // 获取到的字符串可以通过下面的办法转成f64
 			// let xyz = "66.33";
 			// let fxy = xyz.parse::<f64>().unwrap();
@@ -366,6 +370,15 @@ pub mod pallet {
 			// println!("{:?}", fxy);
 			let (a, b) = Self::fetch_dot_parse().unwrap();
 			log::info!("u64: {:0?}, Permill: {:1?}", a, b);
+			// 这里直接用不具签名交易，理由是这个只是用于同步链下与链上某个状态的Oracle，并不需要证明这是谁
+			// call example
+			// let call = Call::submit_number_unsigned(number);
+			//
+			// 			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+			// 			.map_err(|_| {
+			// 				log::error!("Failed in offchain_unsigned_tx");
+			// 				<Error<T>>::OffchainUnsignedTxError
+			// 			})
 			Ok(())
 		}
 
