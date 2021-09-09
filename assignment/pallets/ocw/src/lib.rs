@@ -17,6 +17,8 @@ pub mod pallet {
 	};
 	use sp_core::{crypto::KeyTypeId};
 	use sp_arithmetic::per_things::Permill;
+	// use sp_runtime::Permill;
+	// use sp_runtime::PerThing;
 	use sp_runtime::{
 		offchain as rt_offchain,
 		traits::{
@@ -52,7 +54,7 @@ pub mod pallet {
 	// coincap不稳定，找个其他的api
 	const HTTP_COINCAP_URL: &str = "https://api.coincap.io/v2/assets/polkadot";
 	// 币安的比较稳定，返回的数据也简单
-	const HTTP_BINANCE_URL: &str = "https://api3.binance.com/api/v3/avgPrice?symbol=DOTUSDT";
+	// const HTTP_BINANCE_URL: &str = "https://api3.binance.com/api/v3/avgPrice?symbol=DOTUSDT";
 	const HTTP_HEADER_USER_AGENT: &str = "x2x4";
 
 	const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
@@ -114,12 +116,44 @@ pub mod pallet {
 	#[derive(Debug, Deserialize, Encode, Decode, Default)]
 	struct IndexingData(Vec<u8>, u64);
 
+	#[derive(Deserialize, Encode, Decode, Default)]
+	struct CoinCapData {
+		#[serde(deserialize_with = "de_string_to_bytes")]
+		priceUsd: Vec<u8>
+	}
+
+	#[derive(Deserialize, Encode, Decode, Default)]
+	struct PriceInfo {
+		data: CoinCapData,
+		timestamp: u64
+	}
+
+	pub fn de_split_price<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+		where
+			D: Deserializer<'de>,
+	{
+		let s: &str = Deserialize::deserialize(de)?;
+		Ok(s.as_bytes().to_vec())
+	}
+
 	pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 	where
 	D: Deserializer<'de>,
 	{
 		let s: &str = Deserialize::deserialize(de)?;
 		Ok(s.as_bytes().to_vec())
+	}
+
+	impl fmt::Debug for PriceInfo {
+		// `fmt` converts the vector of bytes inside the struct back to string for
+		//   more friendly display.
+		fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+			write!(
+				f,
+				"{{ price: {} }}",
+				str::from_utf8(&self.data.priceUsd).map_err(|_| fmt::Error)?,
+			)
+		}
 	}
 
 	impl fmt::Debug for GithubInfo {
@@ -186,6 +220,9 @@ pub mod pallet {
 
 		// Error returned when fetching github info
 		HttpFetchingError,
+
+		// Json decode error
+		JsonDecodeError,
 	}
 
 	#[pallet::hooks]
@@ -308,6 +345,7 @@ pub mod pallet {
 		}
 
 		fn fetch_price_info() -> Result<(), Error<T>> {
+			log::info!("!!! In fetch_price_info !!!");
 			// TODO: 这是你们的功课
 
 			// 利用 offchain worker 取出 DOT 当前对 USD 的价格，并把写到一个 Vec 的存储里，
@@ -320,6 +358,14 @@ pub mod pallet {
 			// 这个 http 请求可得到当前 DOT 价格：
 			// [https://api.coincap.io/v2/assets/polkadot](https://api.coincap.io/v2/assets/polkadot)。
 
+			// 根据查到的文档，Permill::from_float(f64) 来获取小数部分
+            // 获取到的字符串可以通过下面的办法转成f64
+			// let xyz = "66.33";
+			// let fxy = xyz.parse::<f64>().unwrap();
+			// let uxy = fxy.round() as u64;
+			// println!("{:?}", fxy);
+			let (a, b) = Self::fetch_dot_parse().unwrap();
+			log::info!("u64: {:0?}, Permill: {:1?}", a, b);
 			Ok(())
 		}
 
@@ -370,6 +416,21 @@ pub mod pallet {
 				}
 			}
 			Ok(())
+		}
+
+		fn fetch_dot_parse() -> Result<(u64, Permill), Error<T>> {
+			let resp_bytes = Self::fetch_from_remote(HTTP_COINCAP_URL).map_err(|e| {
+				log::error!("fetch_from_remote error: {:?}", e);
+				<Error<T>>::HttpFetchingError
+			})?;
+			let resp_str = str::from_utf8(&resp_bytes).map_err(|_| <Error<T>>::HttpFetchingError)?;
+			log::info!("resp: {}", resp_str);
+
+			let price_info: PriceInfo = serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::JsonDecodeError)?;
+
+			log::info!("price: {:?}", price_info);
+			// let price: f64= 33.33;
+			Ok((33 as u64, Permill::from_parts(501)))
 		}
 
 		/// Fetch from remote and deserialize the JSON to a struct
