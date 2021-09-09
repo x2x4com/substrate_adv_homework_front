@@ -424,13 +424,23 @@ pub mod pallet {
 				<Error<T>>::HttpFetchingError
 			})?;
 			let resp_str = str::from_utf8(&resp_bytes).map_err(|_| <Error<T>>::HttpFetchingError)?;
-			log::info!("resp: {}", resp_str);
+			// log::info!("resp: {}", resp_str);
 
 			let price_info: PriceInfo = serde_json::from_str(&resp_str).map_err(|_| <Error<T>>::JsonDecodeError)?;
 
-			log::info!("price: {:?}", price_info);
+			// log::info!("price: {:?}", price_info);
+			// 已经可以获取到了价格，然后需要拆下字符串
+			let price_str = str::from_utf8(&price_info.data.priceUsd).unwrap();
+			let price_vec = price_str.split(".").collect::<Vec<&str>>();
+			log::info!("{:?}", price_vec);
+			let price_u64 = price_vec[0].parse::<u64>().unwrap();
+			let price_a = price_vec[1].as_bytes().to_vec()[0..6].to_vec();
+			let price_b = str::from_utf8(&price_a).unwrap();
+			log::info!("price_b: {}", &price_b);
+			let price_decimal = price_b.parse::<u32>().unwrap();
+			log::info!("price_decimal: {}", price_decimal);
 			// let price: f64= 33.33;
-			Ok((33 as u64, Permill::from_parts(501)))
+			Ok((price_u64, Permill::from_parts(price_decimal)))
 		}
 
 		/// Fetch from remote and deserialize the JSON to a struct
