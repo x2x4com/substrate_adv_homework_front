@@ -192,6 +192,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		NewNumber(Option<T::AccountId>, u64),
+		UpdatePrice(Option<T::AccountId>, u64, Permill)
 	}
 
 	// Errors inform users that something went wrong.
@@ -274,6 +275,7 @@ pub mod pallet {
 
 			match call {
 				Call::submit_number_unsigned(_number) => valid_tx(b"submit_number_unsigned".to_vec()),
+				Call::submit_price_unsigned(_a, _b) => valid_tx(b"submit_price_unsigned".to_vec()),
 				Call::submit_number_unsigned_with_signed_payload(ref payload, ref signature) => {
 					if !SignedPayload::<T>::verify::<T::AuthorityId>(payload, signature.clone()) {
 						return InvalidTransaction::BadProof.into();
@@ -304,6 +306,15 @@ pub mod pallet {
 			Self::append_or_replace_number(number);
 
 			Self::deposit_event(Event::NewNumber(None, number));
+			Ok(())
+		}
+
+		#[pallet::weight(10000)]
+		pub fn submit_price_unsigned(origin: OriginFor<T>, a: u64, b: Permill) -> DispatchResult {
+			let _ = ensure_none(origin)?;
+			log::info!("submit_price_unsigned: {:0?}.{:1?}", a, b);
+			Self::append_or_replace_price(a, b);
+			Self::deposit_event(Event::UpdatePrice(None, a, b));
 			Ok(())
 		}
 
@@ -371,6 +382,7 @@ pub mod pallet {
 			let (a, b) = Self::fetch_dot_parse().unwrap();
 			log::info!("u64: {:0?}, Permill: {:1?}", a, b);
 			// 这里直接用不具签名交易，理由是这个只是用于同步链下与链上某个状态的Oracle，并不需要证明这是谁
+			// 如果从安全角度考虑，还是要加上签名，这样信息的写入可以被追溯，这里简化就直接不签名了
 			// call example
 			// let call = Call::submit_number_unsigned(number);
 			//
@@ -379,6 +391,13 @@ pub mod pallet {
 			// 				log::error!("Failed in offchain_unsigned_tx");
 			// 				<Error<T>>::OffchainUnsignedTxError
 			// 			})
+			let call = Call::submit_price_unsigned(a, b);
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+				.map_err(|_| {
+					log::error!("Failed in offchain_unsigned_tx");
+					<Error<T>>::OffchainUnsignedTxError
+				});
 			Ok(())
 		}
 
